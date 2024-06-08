@@ -1,0 +1,2 @@
+{'userID': 524003739, 'mainChatID': 524003739, 'mainMessageID': 145}
+{'userID': 532160808, 'mainChatID': 532160808, 'mainMessageID': 147}
