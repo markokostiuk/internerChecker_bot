@@ -1,15 +1,15 @@
-import requests
-from bs4 import BeautifulSoup
+import ast
 import base64
+import os
+from datetime import datetime
+
 import cv2
 import numpy as np
-from dotenv import load_dotenv
-import os
-from telebot import TeleBot, types
-from datetime import datetime
 import pytz
-import json
-import ast
+import requests
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from telebot import TeleBot, types
 
 load_dotenv()
 login = os.environ.get('LOGIN')
