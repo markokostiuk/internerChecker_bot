@@ -1,4 +1,3 @@
-import ast
 import base64
 import os
 from datetime import datetime
@@ -25,8 +24,6 @@ right_pixel = 783
 one_minute_pixel = 2
 
 bot = TeleBot(TOKEN)
-
-auth_state = False
 
 
 def get_image():
@@ -152,120 +149,63 @@ def auth(user_id: str):
     return False
 
 
-def get_data(user_id):
-    if os.path.exists('config.txt'):
-        with open('config.txt', 'r') as file:
-            lines = file.readlines()
+def update_status(message):
+    bot.edit_message_text(message_id=message.message_id,
+                          chat_id=message.chat.id,
+                          text='Загрузка...')
 
-        for i, line in enumerate(lines):
-            try:
-                data = ast.literal_eval(line.strip())
-                if data.get('userID') == user_id:
-                    return data.get('userID'), data.get('mainChatID'), data.get('mainMessageID')
-            except (SyntaxError, ValueError):
-                continue
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton('Обновить', callback_data='update'))
 
+    answer = check()
+    bot.edit_message_text(message_id=message.message_id,
+                          chat_id=message.chat.id,
+                          text=answer,
+                          parse_mode='html',
+                          reply_markup=markup)
 
-def update_config_file(file_path, target_user_id, new_line):
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            lines = file.readlines()
-
-        # Проверить, есть ли строка с заданным userID
-        user_found = False
-        for i, line in enumerate(lines):
-            try:
-                data = ast.literal_eval(line.strip())
-                if data.get('userID') == target_user_id:
-                    lines[i] = new_line + '\n'
-                    user_found = True
-                    break
-            except (SyntaxError, ValueError):
-                continue
-
-        # Если такой строки нет, добавить новую строку в конец файла
-        if not user_found:
-            lines.append(new_line + '\n')
-
-        # Сохранить изменения в файл
-        with open(file_path, 'w') as file:
-            file.writelines(lines)
-    else:
-        with open(file_path, 'w') as file:
-            file.write(new_line+'\n')
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    chat_id = message.chat.id
-    message_id = bot.send_message(chat_id, text='Загрузка...').message_id
-    user_id = message.from_user.id
+    main_message = bot.send_message(message.chat.id, text='Авторизовано. Загрузка...')
+    bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
 
-    if not auth(str(user_id)):
-        bot.edit_message_text(message_id=message_id, chat_id=chat_id, text='Доступ запрещен.')
+    if not auth(str(message.from_user.id)):
+        bot.edit_message_text(message_id=main_message.id, chat_id=main_message.chat.id, text='Доступ запрещен.')
         return
 
-    config = str({'userID': user_id, 'mainChatID': chat_id, 'mainMessageID': message_id})
+    update_status(main_message)
 
-    update_config_file(file_path='config.txt', target_user_id=user_id, new_line=config)
 
-    bot.delete_message(chat_id=chat_id, message_id=message.message_id)
-    main(user_id)
+@bot.message_handler(commands=['image'])
+def image(message):
+    if not auth(str(message.from_user.id)):
+        bot.edit_message_text(message_id=message.message_id, chat_id=message.chat.id, text='Доступ запрещен.')
+        return
 
+    if os.path.exists('image.png'):
+        img = open('image.png', 'rb')
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton('Удалить', callback_data='delete_image'))
+
+        bot.send_photo(chat_id=message.chat.id, photo=img, reply_markup=markup)
+
+    bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+
+
+@bot.callback_query_handler(func=lambda callback: True)
+def callback_message(callback):
+    if callback.data == 'update':
+        update_status(callback.message)
+
+    if callback.data == 'delete_image':
+        bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
 
 
 @bot.message_handler()
 def delete_any(message):
     if message.text not in ['/start', '/image']:
         bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-
-def main(user_id):
-    _, mainChatID, mainMessageID = get_data(user_id)
-
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton('Обновить', callback_data='update'))
-
-    answer = check()
-    bot.edit_message_text(message_id=mainMessageID,
-                          chat_id=mainChatID,
-                          text=answer,
-                          parse_mode='html',
-                          reply_markup=markup)
-
-
-@bot.message_handler(commands=['image'])
-def image(message):
-    user_id = message.from_user.id
-    if not auth(str(user_id)):
-        bot.edit_message_text(message_id=message_id, chat_id=chat_id, text='Доступ запрещен.')
-        return
-
-    _, mainChatID, _ = get_data(user_id)
-
-    if os.path.exists('image.png'):
-        img = open('image.png', 'rb')
-        bot.send_photo(chat_id=mainChatID, photo=img)
-
-    bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-
-@bot.callback_query_handler(func=lambda callback: True)
-def callback_message(callback):
-    if callback.data == 'update':
-        _, mainChatID, _ = get_data(callback.from_user.id)
-
-        bot.edit_message_text(message_id=callback.message.message_id,
-                              chat_id=mainChatID,
-                              text='Загрузка...')
-
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('Обновить', callback_data='update'))
-
-        answer = check()
-
-        bot.edit_message_text(message_id=callback.message.message_id,
-                              chat_id=mainChatID,
-                              text=answer,
-                              parse_mode='html',
-                              reply_markup=markup)
 
 
 if __name__ == "__main__":
