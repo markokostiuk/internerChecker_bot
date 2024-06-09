@@ -212,6 +212,7 @@ def start(message):
     main(user_id)
 
 
+
 @bot.message_handler()
 def delete_any(message):
     if message.text != '/start':
@@ -230,6 +231,21 @@ def main(user_id):
                           parse_mode='html',
                           reply_markup=markup)
 
+
+@bot.message_handler(commands=['image'])
+def image(message):
+    user_id = message.from_user.id
+    if not auth(str(user_id)):
+        bot.edit_message_text(message_id=message_id, chat_id=chat_id, text='Доступ запрещен.')
+        return
+
+    _, mainChatID, _ = get_data(user_id)
+
+    if os.path.exists('image.png'):
+        img = open('image.png', 'rb')
+        bot.send_photo(chat_id=mainChatID, photo=img)
+
+    bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
 
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_message(callback):
