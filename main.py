@@ -215,7 +215,7 @@ def start(message):
 
 @bot.message_handler()
 def delete_any(message):
-    if message.text != '/start':
+    if message.text not in ['/start', '/image']:
         bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
 
 def main(user_id):
